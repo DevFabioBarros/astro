@@ -1,0 +1,52 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts",
+    ".next-astro-sandbox-qa-e737464d/types/**/*.ts",
+    ".next-astro-sandbox-qa-e737464d/dev/types/**/*.ts",
+    ".next-astro-t10-qa-20261023-a01/types/**/*.ts",
+    ".next-astro-t10-qa-20261023-a01/dev/types/**/*.ts",
+    ".next-astro-t03-qa-20261024-a01/types/**/*.ts",
+    ".next-astro-t03-qa-20261024-a01/dev/types/**/*.ts",
+    ".next-astro-t22-layout-qa-20261024/types/**/*.ts",
+    ".next-astro-t22-layout-qa-20261024/dev/types/**/*.ts",
+    ".next-astro-preview-20261026-a02/types/**/*.ts",
+    ".next-astro-preview-20261026-a02/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

@@ -9,3 +9,13 @@ graphify-out/
 .superpowers/
 .env*
 !.env.example
+*.tsbuildinfo
+next-env.d.ts
+.playwright-cli/
+.vercel/
+/.next-*/
+/artifacts/
+/.vitest/
+/.maestri/
+/qa-solar-panel.yaml
+/t15-before.png

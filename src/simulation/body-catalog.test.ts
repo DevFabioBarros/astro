@@ -1,0 +1,102 @@
+import { describe, expect, it } from "vitest";
+import { BODY_TEMPLATES, createCatalogBody, schwarzschildRadius } from "./body-catalog";
+import { calculateAccelerations, validateSimulationState } from "./physics";
+import { findOrbitalPrimary, getOrbitalElements, removeBodyFromWorld } from "./orbital-analysis";
+import { createSolarSystem } from "./solar-system";
+import { createBodyEditCandidate } from "./body-edits";
+import { decodeSimulation, encodeSimulation } from "./save-file";
+import { velocityVerletStep } from "./integrator";
+import { advanceSimulationTime } from "./simulation-time";
+import type { CelestialBody } from "./types";
+
+const settings = { gravitationalConstant: 6.6743e-11 };
+describe("physical sandbox catalog", () => {
+  it.each(BODY_TEMPLATES)("creates safe $type bodies, unique IDs and inherited primary motion", (template) => {
+    const solar = createSolarSystem();
+    const primary = solar.find((body) => body.id === (template.type === "moon" ? "earth" : "sun"))!;
+    const first = createCatalogBody(template.type, solar, primary.id, settings);
+    const second = createCatalogBody(template.type, [...solar, first], primary.id, settings);
+    expect(first.bodyType).toBe(template.type);
+    expect(first.parentId).toBe(primary.id);
+    expect(second.id).not.toBe(first.id);
+    expect(() => validateSimulationState([...solar, first, second], settings)).not.toThrow();
+    const r = Math.hypot(...first.positionM.map((value, axis) => value - primary.positionM[axis]!));
+    const v = Math.hypot(...first.velocityMs.map((value, axis) => value - primary.velocityMs[axis]!));
+    expect(v ** 2).toBeCloseTo(settings.gravitationalConstant * (primary.massKg + first.massKg) / r, 5);
+    if (template.type === "moon") expect(() => createCatalogBody(template.type, [], null, settings)).toThrow(/planeta/);
+    else expect(createCatalogBody(template.type, [], null, settings).velocityMs).toEqual([0, 0, 0]);
+  });
+  it("keeps mass-edit positions and velocities; doubled central mass gives the predicted ellipse", () => {
+    const solar = createSolarSystem();
+    const sun = { ...solar[0]!, positionM: [0, 0, 0] as const, velocityMs: [0, 0, 0] as const };
+    const radius = 149597870700;
+    const earth: CelestialBody = { ...solar.find((body) => body.id === "earth")!, massKg: 1, positionM: [radius, 0, 0], velocityMs: [0, Math.sqrt(settings.gravitationalConstant * sun.massKg / radius), 0] };
+    const edited = createBodyEditCandidate([sun, earth], settings, sun.id, "massKg", 2 * sun.massKg);
+    expect(edited[1]).toBe(earth);
+    expect(edited[0]!.velocityMs).toEqual(sun.velocityMs);
+    const orbit = getOrbitalElements(edited[1]!, edited[0]!, settings)!;
+    expect(orbit.eccentricity).toBeCloseTo(0.5, 12);
+    expect(orbit.semiMajorAxisM / radius).toBeCloseTo(2 / 3, 12);
+    expect(orbit.periapsisM / radius).toBeCloseTo(1 / 3, 12);
+    expect(orbit.apoapsisM / radius).toBeCloseTo(1, 12);
+  });
+  it("integrates the falling radius and predicted periapsis after a sudden mass increase", () => {
+    const sun = { ...createSolarSystem()[0]!, positionM: [0, 0, 0] as const, velocityMs: [0, 0, 0] as const };
+    const radius = 149597870700;
+    const earth: CelestialBody = { ...createSolarSystem()[3]!, massKg: 1, positionM: [radius, 0, 0], velocityMs: [0, Math.sqrt(settings.gravitationalConstant * sun.massKg / radius), 0] };
+    let state = [ { ...sun, massKg: sun.massKg * 2 }, earth ];
+    const halfPeriod = Math.PI * Math.sqrt((2 * radius / 3) ** 3 / (settings.gravitationalConstant * sun.massKg * 2));
+    const dt = halfPeriod / 4000;
+    const initial = state;
+    state = velocityVerletStep(state, settings, dt);
+    expect(Math.hypot(...state[1]!.positionM)).toBeLessThan(radius);
+    state = initial;
+    for (let step = 0; step < 4000; step += 1) state = velocityVerletStep(state, settings, dt);
+    expect(Math.hypot(...state[1]!.positionM) / radius).toBeCloseTo(1 / 3, 4);
+  });
+  it("requires a planet for new moons and supports stationary non-orbiting placement", () => {
+    const solar = createSolarSystem();
+    expect(() => createCatalogBody("moon", [solar[0]!], null, settings)).toThrow(/planeta/);
+    expect(() => createCatalogBody("moon", solar, "sun", settings)).toThrow(/planeta/);
+    const free = createCatalogBody("star", solar, null, settings);
+    expect(free.velocityMs).toEqual([0, 0, 0]);
+    expect(free.parentId).toBeUndefined();
+    expect(createCatalogBody("moon", solar, null, settings).parentId).toBe("earth");
+  });
+  it("removes Earth without changing Moon motion and leaves a bound solar trajectory", () => {
+    const solar = createSolarSystem();
+    const moon = { ...solar.find((body) => body.id === "moon")!, parentId: "earth" };
+    const remaining = removeBodyFromWorld(solar.map((body) => body.id === "moon" ? moon : body), "earth");
+    const orphan = remaining.find((body) => body.id === "moon")!;
+    expect(orphan.velocityMs).toEqual(moon.velocityMs);
+    expect(orphan.positionM).toEqual(moon.positionM);
+    expect(orphan.parentId).toBeUndefined();
+    const primary = findOrbitalPrimary(orphan, remaining, settings)!;
+    expect(primary.id).toBe("sun");
+    expect(getOrbitalElements(orphan, primary, settings)?.bound).toBe(true);
+    let state = remaining;
+    for (let day = 0; day < 10; day += 1) state = advanceSimulationTime(state, settings, 86400);
+    const movedMoon = state.find((body) => body.id === "moon")!;
+    expect(movedMoon.positionM.every(Number.isFinite)).toBe(true);
+    expect(getOrbitalElements(movedMoon, state.find((body) => body.id === "sun")!, settings)?.bound).toBe(true);
+  });
+  it("uses identical exterior gravity for a Sun and an equal-mass black hole", () => {
+    const solar = createSolarSystem().slice(0, 2);
+    const blackHole = { ...solar[0]!, bodyType: "black-hole" as const, radiusM: schwarzschildRadius(solar[0]!.massKg) };
+    expect(calculateAccelerations([blackHole, solar[1]!], settings)).toEqual(calculateAccelerations(solar, settings));
+    const edited = createBodyEditCandidate([blackHole], settings, blackHole.id, "massKg", blackHole.massKg * 2)[0]!;
+    expect(edited.radiusM).toBe(schwarzschildRadius(edited.massKg));
+    expect(() => validateSimulationState([{ ...blackHole, radiusM: blackHole.radiusM * 2 }], settings)).toThrow(/raio/);
+    expect(() => decodeSimulation(JSON.stringify({ format: "astro-simulation", version: 2, settings, bodies: [{ ...blackHole, radiusM: 1 }] }))).toThrow();
+    expect(() => calculateAccelerations([blackHole, { ...solar[1]!, positionM: [blackHole.positionM[0] + blackHole.radiusM * 10, blackHole.positionM[1], blackHole.positionM[2]] }], settings)).toThrow(/relatividade/);
+  });
+  it("preserves v2 metadata and empty worlds, and reads strict legacy v1", () => {
+    const body = createCatalogBody("black-hole", [], null, settings);
+    expect(JSON.parse(encodeSimulation([body], settings)).version).toBe(8);
+    expect(decodeSimulation(encodeSimulation([body], settings)).bodies).toEqual([body]);
+    expect(decodeSimulation(encodeSimulation([], settings)).bodies).toEqual([]);
+    const legacy = createSolarSystem();
+    expect(decodeSimulation(JSON.stringify({ format: "astro-simulation", version: 1, bodies: legacy, settings })).bodies).toEqual(legacy);
+    expect(() => decodeSimulation(JSON.stringify({ format: "astro-simulation", version: 2, bodies: [{ ...body, bodyType: "invalid" }], settings }))).toThrow();
+  });
+});

@@ -160,13 +160,13 @@
 - Modify: `README.md`, `PRODUCT.md`, `AGENTS.md`, `docs/architecture.md`, `docs/design.md`, `docs/onboarding.md`, `docs/quality.md`, `docs/setup.md`
 - Create: `playwright.config.ts`, `e2e/simulation.spec.ts`
 
-- [ ] Run `pnpm lint`, `pnpm typecheck`, `pnpm lint:rules`, `pnpm test`, and `pnpm build` from a clean dependency install.
-- [ ] Configure Playwright to use installed Chrome, without downloading a second browser. Add an end-to-end test for startup, body editing, temperature phase changes, and file round-trip.
-- [ ] Run `pnpm exec playwright test` against the app on a free port and record the browser version.
-- [ ] Exercise the WebGL-unavailable path and confirm the page explains the issue without a blank interactive area.
-- [ ] Run Graphify code-only extraction with auto-refresh disabled if the installed CLI accepts the documented mode; record configured/not run if unsupported.
-- [ ] Update `docs/setup.md` with exact versions, source URLs, commands, and validated/configured/pending statuses; update other docs to reflect implemented features only.
-- [ ] Review `git diff --check`, `git status`, and all generated files; preserve the approved design and this plan.
+- [x] Run `pnpm lint`, `pnpm typecheck`, `pnpm lint:rules`, `pnpm test`, and `pnpm build` after `pnpm install --frozen-lockfile --force`.
+- [x] Configure Playwright to use installed Chrome, without downloading a second browser. Add an end-to-end test for startup, body editing, temperature phase changes, and file round-trip.
+- [x] Run `pnpm exec playwright test` against the app on a free port and record the browser version.
+- [x] Exercise the WebGL-unavailable path and confirm the page explains the issue without a blank interactive area.
+- [x] Run Graphify code-only extraction with auto-refresh disabled if the installed CLI accepts the documented mode; record configured/not run if unsupported.
+- [x] Update `docs/setup.md` with exact versions, source URLs, commands, and validated/configured/pending statuses; update other docs to reflect implemented features only.
+- [x] Review `git diff --check`, `git status`, and all generated files; preserve the approved design and this plan.
 
 ## Future plans after this slice
 

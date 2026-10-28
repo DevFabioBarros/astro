@@ -1,0 +1,40 @@
+{
+  "name": "astro",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "lint:rules": "node scripts/verify-quality-rules.mjs",
+    "test": "vitest run",
+    "bench:simulation": "vitest run --silent=false src/simulation/core-benchmark.test.ts",
+    "check": "pnpm lint && pnpm typecheck && pnpm lint:rules && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "next": "16.4.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "three": "0.186.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@tailwindcss/turbopack": "^4",
+    "@types/node": "24.19.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/three": "0.186.0",
+    "eslint": "10.12.0",
+    "eslint-config-next": "16.4.1",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "5.0.5"
+  },
+  "packageManager": "pnpm@12.11.2",
+  "engines": {
+    "node": ">=24.21.0 <25"
+  }
+}
